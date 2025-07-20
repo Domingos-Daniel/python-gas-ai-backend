@@ -1,0 +1,21 @@
+{
+  "documents_count": 14,
+  "total_chars": 52625,
+  "sources": [
+    "anpg_01.txt",
+    "anpg_02.txt",
+    "anpg_03.txt",
+    "anpg_04.txt",
+    "azule_01.txt",
+    "azule_02.txt",
+    "azule_03.txt",
+    "sonangol_01.txt",
+    "sonangol_02.txt",
+    "sonangol_03.txt",
+    "total_01.txt",
+    "total_02.txt",
+    "total_03.txt",
+    "total_04.txt"
+  ],
+  "created_at": "2025-07-16T11:30:00"
+}
