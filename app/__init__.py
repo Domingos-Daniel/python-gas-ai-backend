@@ -15,3 +15,8 @@ Módulos principais:
 
 __version__ = "1.0.0"
 __author__ = "Equipe de Desenvolvimento"
+
+# Permite execução direta do módulo
+if __name__ == "__main__":
+    from .main import run_server
+    run_server()
