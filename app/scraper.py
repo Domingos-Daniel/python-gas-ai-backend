@@ -25,6 +25,7 @@ class WebScraper:
     - Sonangol Refinação  
     - Azule Energies
     - ANPG
+    -Petroangola
     """
     
     def __init__(self):
@@ -38,7 +39,8 @@ class WebScraper:
             'total': 'https://totalenergies.com/angola',
             'sonangol': 'https://www.sonangol.co.ao',
             'azule': 'https://www.azule-energy.com',
-            'anpg': 'https://anpg.co.ao'
+            'anpg': 'https://anpg.co.ao',
+            'petroangola': 'https://petroangola.com',
         }
     
     def clean_text(self, text: str) -> str:
@@ -120,7 +122,7 @@ class WebScraper:
             logger.error(f"Erro ao extrair conteúdo de {url}: {e}")
             return None
     
-    def discover_pages(self, base_url: str, max_pages: int = 10) -> List[str]:
+    def discover_pages(self, base_url: str, max_pages: int = 30) -> List[str]:
         """
         Descobre páginas relevantes de um site.
         
@@ -214,7 +216,7 @@ class WebScraper:
             
             logger.info(f"Conteúdo salvo: {filepath}")
     
-    def scrape_all_sites(self, max_pages_per_site: int = 3) -> None:
+    def scrape_all_sites(self, max_pages_per_site: int = 100) -> None:
         """
         Faz scraping de todos os sites configurados.
         

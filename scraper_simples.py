@@ -33,7 +33,8 @@ class EnergyScraper:
             'total': 'https://totalenergies.com/angola',
             'sonangol': 'https://www.sonangol.co.ao',
             'azule': 'https://www.azule-energy.com',
-            'anpg': 'https://anpg.co.ao'
+            'anpg': 'https://anpg.co.ao',
+            'petroangola': 'https://www.petroangola.com'
         }
     
     def clean_text(self, text):

@@ -304,6 +304,11 @@ RESPOSTA DETALHADA (em Markdown):"""
                     'name': 'ANPG',
                     'url': 'https://anpg.ao',
                     'description': 'Site oficial da Agência Nacional de Petróleo, Gás e Biocombustíveis'
+                },
+                'petroangola_': {
+                    'name': 'Petroangola',
+                    'url': 'https://petroangola.com',
+                    'description': 'Portal de notícias e informações sobre o setor de petróleo e gás em Angola'
                 }
             }
             
@@ -312,7 +317,7 @@ RESPOSTA DETALHADA (em Markdown):"""
             used_sources = []
             
             for file_path in data_path.glob("*.txt"):
-                if any(prefix in file_path.name for prefix in ['total_', 'sonangol_', 'azule_', 'anpg_']):
+                if any(prefix in file_path.name for prefix in ['total_', 'sonangol_', 'azule_', 'anpg_', 'petroangola_']):
                     try:
                         content = file_path.read_text(encoding='utf-8')
                         # Remove metadados do cabeçalho
@@ -350,13 +355,24 @@ RESPOSTA DETALHADA (em Markdown):"""
                 'total': ['total', 'totalenergies'],
                 'sonangol': ['sonangol'],
                 'azule': ['azule', 'azul'],
-                'anpg': ['anpg', 'agência', 'agencia', 'nacional', 'petróleo', 'petroleo', 'regulador']
+                'anpg': ['anpg', 'agência nacional', 'agencia nacional', 'anpg.ao'],
+                'petroangola': ['petroangola', 'petro angola', 'petróleo angola', 'petroleo angola']
             }
             
             companies_mentioned = []
             for company, keywords in keywords_map.items():
                 if any(keyword in question_lower for keyword in keywords):
                     companies_mentioned.append(company)
+            
+            # Define fontes principais baseado no contexto
+            if 'petroangola' in companies_mentioned:
+                main_sources = ['petroangola']  # Prioriza Petroangola quando específico
+            elif companies_mentioned:
+                main_sources = companies_mentioned  # Usa as empresas mencionadas
+            else:
+                main_sources = ['total', 'sonangol', 'anpg']  # Fontes padrão para perguntas genéricas
+            
+
             
             # Se empresa específica mencionada, prioriza seu contexto
             if companies_mentioned:
@@ -375,32 +391,27 @@ RESPOSTA DETALHADA (em Markdown):"""
                     if company_content:
                         relevant_content.append(f"=== {company.upper()} ===\n" + "\n\n".join(company_content))
                 
-                # Adiciona contexto resumido das outras empresas
-                for company in ['total', 'sonangol', 'azule', 'anpg']:
+                # Adiciona contexto resumido das outras empresas (mas não adiciona às fontes)
+                for company in ['total', 'sonangol', 'azule', 'anpg', 'petroangola']:
                     if company not in companies_mentioned:
                         for filename, content in company_files.items():
                             if filename.startswith(f"{company}_") and filename.endswith("_01.txt"):  # Só primeira página
                                 relevant_content.append(f"=== {company.upper()} (Resumo) ===\n" + content[:800])
-                                
-                                # Adiciona fonte correspondente
-                                for prefix, source_info in source_mapping.items():
-                                    if filename.startswith(prefix) and source_info not in relevant_sources:
-                                        relevant_sources.append(source_info)
-                                        break
                                 break
             else:
-                # Se nenhuma empresa específica, inclui resumo de todas
-                for company in ['total', 'sonangol', 'azule', 'anpg']:
+                # Se nenhuma empresa específica, inclui resumo de todas (mas só adiciona fontes principais)
+                main_sources = ['total', 'sonangol', 'anpg']  # Fontes principais para perguntas genéricas
+                for company in ['total', 'sonangol', 'azule', 'anpg', 'petroangola']:
                     for filename, content in company_files.items():
                         if filename.startswith(f"{company}_") and filename.endswith("_01.txt"):
                             relevant_content.append(f"=== {company.upper()} ===\n" + content[:1200])
-                            
-                            # Adiciona fonte correspondente
-                            for prefix, source_info in source_mapping.items():
-                                if filename.startswith(prefix) and source_info not in relevant_sources:
-                                    relevant_sources.append(source_info)
-                                    break
                             break
+                
+                # Adiciona TODAS as fontes principais à lista de fontes relevantes
+                for company in main_sources:
+                    for prefix, source_info in source_mapping.items():
+                        if prefix.startswith(f"{company}_"):
+                            relevant_sources.append(source_info)
             
             final_context = "\n\n".join(relevant_content)
             
@@ -462,6 +473,34 @@ except Exception as e:
     logger.error(f"Falha ao inicializar serviço LLM: {e}")
     # Permite que a aplicação continue, mas com funcionalidade limitada
     llm_service = None
+
+
+def query_llm_simple(prompt: str) -> str:
+    """
+    Função simples para consultar o LLM sem contexto de índice.
+    
+    Args:
+        prompt: Texto da pergunta/prompt
+        
+    Returns:
+        Resposta do LLM
+    """
+    try:
+        if not GEMINI_AVAILABLE:
+            return None
+            
+        # Configura Gemini se ainda não estiver configurado
+        if not hasattr(query_llm_simple, '_gemini_client'):
+            genai.configure(api_key=config.GEMINI_API_KEY)
+            query_llm_simple._gemini_client = genai.GenerativeModel(config.GEMINI_MODEL)
+        
+        # Gera resposta
+        response = query_llm_simple._gemini_client.generate_content(prompt)
+        return response.text.strip()
+        
+    except Exception as e:
+        logger.error(f"Erro em query_llm_simple: {e}")
+        return None
 
 
 def query_llm(question: str, history: list = None) -> str:
