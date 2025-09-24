@@ -13,7 +13,7 @@ def main():
     
     # Para produção, força algumas configurações
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8080"))
+    port = int(os.getenv("PORT", "8000"))
     
     print(f"🚀 Iniciando servidor na porta {port}...")
     print(f"🔧 Host: {host}")

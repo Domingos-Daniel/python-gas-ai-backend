@@ -88,7 +88,8 @@ app.add_middleware(
         "http://localhost:8080",  # Vue development server
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8080",
-        "http://localhost:3001",  # Porta alternativa Next.js
+        "http://localhost:3001",
+        "https://chatbot-angola.leapcell.app/",  # Porta alternativa Next.js
         "*",  # Permite todas as origens em desenvolvimento
     ],
     allow_credentials=True,
