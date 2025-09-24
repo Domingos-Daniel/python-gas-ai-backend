@@ -27,3 +27,17 @@ faiss-cpu>=1.7.0
 # Additional utilities
 tenacity>=8.0.0
 tiktoken>=0.4.0
+
+# Chart generation dependencies (ESSENCIAL PARA DEPLOYMENT)
+matplotlib>=3.7.0
+plotly>=5.15.0
+seaborn>=0.12.0
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Additional essential dependencies
+python-multipart>=0.0.6  # For file uploads
+httpx>=0.24.0  # For async HTTP requests
