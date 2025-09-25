@@ -1,0 +1,93 @@
+{
+  "test_summary": {
+    "total_tests": 9,
+    "successful": 6,
+    "failed": 0,
+    "errors": 3,
+    "timestamp": "2025-09-25T07:51:27.364131"
+  },
+  "detailed_results": [
+    {
+      "test": "firecrawl_total",
+      "status": "error",
+      "error": "object list can't be used in 'await' expression",
+      "timestamp": "2025-09-25T07:50:50.206369"
+    },
+    {
+      "test": "firecrawl_sonangol",
+      "status": "error",
+      "error": "object list can't be used in 'await' expression",
+      "timestamp": "2025-09-25T07:50:50.207565"
+    },
+    {
+      "test": "firecrawl_azule",
+      "status": "error",
+      "error": "object list can't be used in 'await' expression",
+      "timestamp": "2025-09-25T07:50:50.208932"
+    },
+    {
+      "test": "prompt_greeting",
+      "status": "success",
+      "response_length": 110,
+      "confidence": 0.95,
+      "metadata": {
+        "type": "greeting",
+        "timestamp": 1758783050.2098732
+      },
+      "timestamp": "2025-09-25T07:50:50.211593"
+    },
+    {
+      "test": "prompt_company_analysis",
+      "status": "success",
+      "response_length": 3766,
+      "confidence": 0.85,
+      "metadata": {
+        "type": "generic_response",
+        "prompt_version": "angola_energy_v1",
+        "timestamp": 1758783059.3162088,
+        "context_used": false
+      },
+      "timestamp": "2025-09-25T07:50:59.317752"
+    },
+    {
+      "test": "prompt_market_trends",
+      "status": "success",
+      "response_length": 4401,
+      "confidence": 0.85,
+      "metadata": {
+        "type": "detailed_analysis",
+        "prompt_version": "angola_energy_v1",
+        "timestamp": 1758783067.8271308,
+        "context_used": false
+      },
+      "timestamp": "2025-09-25T07:51:07.830086"
+    },
+    {
+      "test": "prompt_block_analysis",
+      "status": "success",
+      "response_length": 2918,
+      "confidence": 0.85,
+      "metadata": {
+        "type": "detailed_analysis",
+        "prompt_version": "angola_energy_v1",
+        "timestamp": 1758783074.018691,
+        "context_used": false
+      },
+      "timestamp": "2025-09-25T07:51:14.021927"
+    },
+    {
+      "test": "integration_with_context",
+      "status": "success",
+      "response_length": 3113,
+      "context_used": true,
+      "timestamp": "2025-09-25T07:51:20.117386"
+    },
+    {
+      "test": "integration_with_context",
+      "status": "success",
+      "response_length": 3070,
+      "context_used": true,
+      "timestamp": "2025-09-25T07:51:27.363270"
+    }
+  ]
+}

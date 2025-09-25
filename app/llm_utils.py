@@ -1,6 +1,6 @@
 """
 Módulo utilitário para LLM (Large Language Model).
-Responsável por integrar LlamaIndex com Gemini SDK para consultas contextuais.
+Integração com Angola Energy Prompt System para consultas especializadas.
 """
 from typing import Optional
 import logging
@@ -8,17 +8,7 @@ from pathlib import Path
 import time
 import json
 from functools import wraps
-
-try:
-    from llama_index.core import StorageContext, load_index_from_storage, Settings
-    from llama_index.llms.gemini import Gemini
-    from llama_index.embeddings.gemini import GeminiEmbedding
-    from llama_index.core.query_engine.base import BaseQueryEngine
-    LLAMAINDEX_AVAILABLE = True
-except ImportError:
-    # Fallback se LlamaIndex não estiver disponível
-    LLAMAINDEX_AVAILABLE = False
-    BaseQueryEngine = object
+from .angola_energy_prompts import angola_energy_prompts
 
 try:
     import google.generativeai as genai
@@ -67,412 +57,322 @@ def rate_limit_decorator(func):
 
 class LLMService:
     """
-    Serviço para gerenciar consultas ao LLM usando LlamaIndex e Gemini.
-    
-    Responsabilidades:
-    - Carregar índice previamente construído
-    - Configurar LLM e embeddings
-    - Processar consultas e retornar respostas
+    Serviço para gerenciar consultas ao LLM usando Angola Energy Prompt System.
     """
     
     def __init__(self):
-        self.query_engine: Optional[BaseQueryEngine] = None
         self.gemini_client = None
-        self.use_llamaindex = LLAMAINDEX_AVAILABLE
         
         if GEMINI_AVAILABLE:
             self._initialize_gemini_direct()
-        
-        if LLAMAINDEX_AVAILABLE:
-            self._initialize_llm()
-            self._load_index()
         else:
-            logger.warning("LlamaIndex não disponível - usando Gemini direto")
+            logger.error("Gemini não disponível")
     
     def _initialize_gemini_direct(self) -> None:
-        """Inicializa cliente Gemini direto como fallback."""
+        """Inicializa cliente Gemini direto."""
         try:
             genai.configure(api_key=config.GEMINI_API_KEY)
-            # Usa o modelo configurado no .env
-            model_name = config.GEMINI_MODEL
-            self.gemini_client = genai.GenerativeModel(model_name)
-            logger.info(f"Cliente Gemini direto inicializado com {model_name} ✓")
+            self.gemini_client = genai.GenerativeModel(config.GEMINI_MODEL)
+            logger.info(f"Cliente Gemini inicializado com {config.GEMINI_MODEL} ✓")
         except Exception as e:
-            logger.error(f"Erro ao inicializar Gemini direto: {e}")
+            logger.error(f"Erro ao inicializar Gemini: {e}")
             self.gemini_client = None
     
-    def _initialize_llm(self) -> None:
-        """Inicializa o modelo LLM e embeddings do Gemini."""
-        try:
-            # Configura LLM Gemini
-            llm = Gemini(
-                api_key=config.GEMINI_API_KEY,
-                model=config.GEMINI_MODEL,
-                temperature=0.1  # Para respostas mais consistentes
-            )
-            
-            # Configura embeddings Gemini
-            embed_model = GeminiEmbedding(
-                api_key=config.GEMINI_API_KEY,
-                model_name="models/embedding-001"
-            )
-            
-            # Define configurações globais
-            Settings.llm = llm
-            Settings.embed_model = embed_model
-            
-            logger.info(f"LLM LlamaIndex inicializado: {config.GEMINI_MODEL}")
-            
-        except Exception as e:
-            logger.error(f"Erro ao inicializar LLM: {e}")
-            self.use_llamaindex = False
-    
-    def _load_index(self) -> None:
-        """Carrega o índice previamente construído do diretório de storage."""
-        try:
-            index_path = Path(config.INDEX_DIR)
-            
-            if not index_path.exists():
-                raise FileNotFoundError(
-                    f"Diretório do índice não encontrado: {index_path}. "
-                    "Execute 'python index_builder.py' primeiro."
-                )
-            
-            # Carrega contexto de storage
-            storage_context = StorageContext.from_defaults(
-                persist_dir=str(index_path)
-            )
-            
-            # Carrega índice
-            index = load_index_from_storage(storage_context)
-            
-            # Cria query engine com configurações otimizadas
-            self.query_engine = index.as_query_engine(
-                similarity_top_k=5,  # Top 5 documentos mais similares
-                response_mode="tree_summarize"  # Melhor para respostas longas
-            )
-            
-            logger.info(f"Índice carregado com sucesso de: {index_path}")
-            
-        except Exception as e:
-            logger.error(f"Erro ao carregar índice: {e}")
-            raise
-    
-    @rate_limit_decorator
-    def query(self, question: str, history: list = None) -> str:
+    def process_query_with_llm(self, question: str, conversation_history: list = None, 
+                              context_data: dict = None) -> dict:
         """
-        Processa uma pergunta e retorna uma resposta baseada no contexto.
-        
-        Args:
-            question: Pergunta do usuário
-            history: Histórico de mensagens da conversa
-            
-        Returns:
-            Resposta gerada pelo LLM com base no contexto
-            
-        Raises:
-            ValueError: Se a pergunta estiver vazia
-            Exception: Para outros erros durante o processamento
+        Process query using Angola Energy Prompt System
         """
-        if not question.strip():
-            raise ValueError("Pergunta não pode estar vazia")
-        
-        if history is None:
-            history = []
-        
         try:
-            logger.info(f"Processando pergunta: {question[:100]}...")
-            logger.info(f"Histórico com {len(history)} mensagens")
+            logger.info(f"🤖 Processing query: {question[:100]}...")
             
-            # Tenta usar LlamaIndex primeiro se disponível
-            if self.use_llamaindex and self.query_engine:
-                try:
-                    response = self.query_engine.query(question)
-                    answer = str(response).strip()
-                    logger.info("Resposta gerada via LlamaIndex")
-                    return answer
-                except Exception as e:
-                    logger.warning(f"Erro no LlamaIndex, usando fallback: {e}")
-                    # Continua para o fallback
+            # Check for simple greetings
+            if self._is_simple_greeting(question):
+                logger.info("✅ Simple greeting detected")
+                greeting_response = self._generate_greeting_response(conversation_history)
+                return {
+                    "response": greeting_response,
+                    "source": "greeting_system",
+                    "confidence": 0.95,
+                    "metadata": {
+                        "type": "greeting",
+                        "timestamp": time.time()
+                    }
+                }
             
-            # Fallback para Gemini direto
-            if self.gemini_client:
-                try:
-                    # Carrega contexto dos arquivos se disponível
-                    context, sources = self._load_context_files(question)
-                    
-                    # Constrói histórico da conversa
-                    conversation_history = ""
-                    if history:
-                        conversation_history = "\n\nHISTÓRICO DA CONVERSA:\n"
-                        for msg in history[-6:]:  # Últimas 6 mensagens para não exceder tokens
-                            role = "USUÁRIO" if msg.get("role") == "user" else "ASSISTENTE"
-                            content = msg.get("content", "")[:200]  # Limita tamanho
-                            conversation_history += f"{role}: {content}\n"
-                    
-                    # Prompt melhorado para respostas mais profissionais com formatação markdown
-                    prompt = f"""Você é um consultor especializado em energia e petróleo em Angola, com conhecimento detalhado sobre as principais empresas do setor. Baseie sua resposta exclusivamente nas informações do contexto fornecido.
-
-CONTEXTO EMPRESARIAL:
-{context}{conversation_history}
-
-DIRETRIZES PARA RESPOSTA:
-• Responda de forma profissional, estruturada e completa usando formatação Markdown
-• Use **negrito** para termos importantes e nomes de empresas
-• Use *itálico* para destacar conceitos específicos
-• Organize listas com • ou números quando apropriado
-• Use cabeçalhos ## quando necessário para estruturar seções
-• Inclua dados relevantes como números, projetos e atividades específicas
-• Mantenha tom consultivo e informativo
-• Se a informação for limitada, mencione isso claramente
-• Conclua a resposta de forma natural, sem cortes abruptos
-• Formate tabelas usando sintaxe markdown quando apropriado
-• Use `código` para destacar valores específicos ou termos técnicos
-• IMPORTANTE: Considere o histórico da conversa acima para manter contexto e coerência
-• Se o usuário usar pronomes como "isso", "mesmo", "ele", etc., refira-se ao contexto anterior
-
-PERGUNTA ATUAL DO CLIENTE: {question}
-
-RESPOSTA DETALHADA (em Markdown):"""
-                    
-                    response = self.gemini_client.generate_content(
-                        prompt,
-                        generation_config=genai.types.GenerationConfig(
-                            temperature=config.RESPONSE_TEMPERATURE,
-                            max_output_tokens=config.MAX_OUTPUT_TOKENS,
-                            top_p=0.8,
-                            top_k=40
-                        )
-                    )
-                    
-                    answer = response.text.strip() if response.text else "Desculpe, não consegui gerar uma resposta adequada."
-                    
-                    # Adiciona seção de fontes se houver
-                    if sources:
-                        answer += "\n\n---\n\n### 📚 Fontes Consultadas\n\n"
-                        for source in sources:
-                            answer += f"• **[{source['name']}]({source['url']})** - {source['description']}\n"
-                    
-                    logger.info("Resposta gerada via Gemini direto")
-                    return answer
-                    
-                except google_exceptions.ResourceExhausted as e:
-                    logger.error("Quota da API excedida")
-                    raise Exception("Quota da API do Gemini excedida. Tente novamente mais tarde.")
-                    
-                except google_exceptions.PermissionDenied as e:
-                    logger.error("Erro de permissão na API")
-                    raise Exception("Erro de autenticação. Verifique sua API key.")
-                    
-                except Exception as e:
-                    logger.error(f"Erro no Gemini direto: {e}")
-                    raise Exception(f"Erro ao processar pergunta: {str(e)}")
+            # Create system prompt with context
+            system_prompt = angola_energy_prompts.create_system_prompt(
+                context_data=context_data,
+                user_info=None
+            )
             
+            # Create query-specific prompt
+            query_prompt = angola_energy_prompts.create_query_prompt(
+                question=question,
+                context="",
+                conversation_history=conversation_history
+            )
+            
+            # Determine if this is a generic question
+            is_generic = self._is_generic_question(question)
+            
+            # Load context for detailed questions
+            context, sources = "", []
+            if not is_generic:
+                context, sources = self._load_context_files(question)
+            
+            # Build appropriate prompt
+            if is_generic:
+                prompt = f"""{system_prompt}
+
+{query_prompt}
+
+📋 **RESPOSTA CONCISA:**
+Forneça uma resposta direta e objetiva."""
             else:
-                raise Exception("Nenhum método de LLM disponível")
+                prompt = f"""{system_prompt}
+
+{query_prompt}
+
+🔍 **ANÁLISE DETALHADA:**
+Forneça uma análise abrangente com:
+• Dados específicos e numéricos
+• Contexto temporal atualizado
+• Análise estratégica e insights
+• Formatação clara com Markdown
+
+Contexto:
+{context}"""
             
+            # Generate response with Gemini
+            response = self.gemini_client.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=config.RESPONSE_TEMPERATURE,
+                    max_output_tokens=config.MAX_OUTPUT_TOKENS,
+                    top_p=0.8,
+                    top_k=40
+                )
+            )
+            
+            if response and response.text:
+                final_response = response.text.strip()
+                
+                # Add source attribution with links
+                if sources:
+                    source_links = []
+                    for source in sources:
+                        if isinstance(source, dict) and 'name' in source and 'url' in source:
+                            source_links.append(f"[{source['name']}]({source['url']})")
+                        else:
+                            source_links.append(str(source))
+                    
+                    if source_links:
+                        final_response += f"\n\n---\n*Fontes: {', '.join(source_links)}*"
+                
+                return {
+                    "response": final_response,
+                    "source": "angola_energy_prompts",
+                    "confidence": 0.85,
+                    "metadata": {
+                        "type": "detailed_analysis" if not is_generic else "generic_response",
+                        "prompt_version": "angola_energy_v1",
+                        "timestamp": time.time(),
+                        "context_used": bool(context)
+                    }
+                }
+            else:
+                return {
+                    "response": "Desculpe, não consegui processar sua pergunta. Por favor, tente novamente.",
+                    "source": "error_fallback",
+                    "confidence": 0.0,
+                    "metadata": {
+                        "error": "Empty response",
+                        "timestamp": time.time()
+                    }
+                }
+                
         except Exception as e:
-            logger.error(f"Erro ao processar pergunta: {e}")
-            # Re-levanta a exceção para que seja tratada pela API
-            raise
+            logger.error(f"❌ Error processing query: {e}")
+            return {
+                "response": "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente.",
+                "source": "error_fallback",
+                "confidence": 0.0,
+                "metadata": {
+                    "error": str(e),
+                    "timestamp": time.time()
+                }
+            }
+    
+    def _is_simple_greeting(self, question: str) -> bool:
+        """Check if the question is a simple greeting"""
+        greetings = ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'oi', 'hello', 'hi']
+        question_lower = question.lower().strip()
+        return any(greeting in question_lower for greeting in greetings) and len(question.split()) <= 3
+    
+    def _generate_greeting_response(self, conversation_history: list = None) -> str:
+        """Generate greeting response with concrete examples"""
+        greetings = [
+            "Olá! 👋 Sou seu consultor especializado em energia e petróleo em Angola. Posso ajudá-lo com:\n\n• Análises das principais empresas (Sonangol, Total, Azule Energy)\n• Tendências do mercado energético angolano\n• Dados de produção e investimentos\n• Projetos e desenvolvimentos do setor\n\nO que gostaria de saber?",
+            "Bom dia! 💡 Estou aqui para fornecer informações estratégicas sobre o setor de energia angolano. Posso ajudar com:\n\n• Análises de desempenho das empresas\n• Dados de produção e exportação\n• Tendências de mercado e oportunidades\n• Contexto regulatório e investimentos\n\nQual sua pergunta específica?",
+            "Oi! 🛢️ Seja bem-vindo ao consultor especializado em energia de Angola. Minhas principais capacidades incluem:\n\n• Análises detalhadas das empresas petrolíferas\n• Dados atualizados do setor energético\n• Insights sobre projetos e investimentos\n• Informações sobre regulamentações e mercado\n\nComo posso ser útil para você hoje?"
+        ]
+        import random
+        return random.choice(greetings)
+    
+    def _is_generic_question(self, question: str) -> bool:
+        """Determine if this is a generic question"""
+        generic_keywords = ['quem é', 'o que é', 'definir', 'definição', 'significado']
+        question_lower = question.lower()
+        return any(keyword in question_lower for keyword in generic_keywords) or len(question.split()) <= 5
     
     def _load_context_files(self, question: str = "") -> tuple[str, list]:
-        """Carrega arquivos de contexto da pasta data de forma inteligente."""
+        """Carrega arquivos de contexto da pasta data."""
         try:
             data_path = Path(config.DATA_DIR)
             if not data_path.exists():
                 return "Contexto não disponível.", []
             
-            # Mapeia arquivos para suas fontes/URLs
+            # Mapeia arquivos para suas fontes com URLs base
             source_mapping = {
-                'total_': {
-                    'name': 'Total Energies Angola',
-                    'url': 'https://totalenergies.com/ao',
-                    'description': 'Site oficial da Total Energies Angola'
-                },
-                'sonangol_': {
-                    'name': 'Sonangol',
-                    'url': 'https://sonangol.co.ao',
-                    'description': 'Site oficial da Sonangol'
-                },
-                'azule_': {
-                    'name': 'Azule Energy',
-                    'url': 'https://azule-energy.com',
-                    'description': 'Site oficial da Azule Energy'
-                },
-                'anpg_': {
-                    'name': 'ANPG',
-                    'url': 'https://anpg.ao',
-                    'description': 'Site oficial da Agência Nacional de Petróleo, Gás e Biocombustíveis'
-                },
-                'petroangola_': {
-                    'name': 'Petroangola',
-                    'url': 'https://petroangola.com',
-                    'description': 'Portal de notícias e informações sobre o setor de petróleo e gás em Angola'
-                }
+                'total_': ('Total Energies Angola', 'https://www.totalenergies.com'),
+                'sonangol_': ('Sonangol', 'https://www.sonangol.co.ao'),
+                'azule_': ('Azule Energy', 'https://www.azuleenergy.com'),
+                'anpg_': ('ANPG', 'https://www.anpg.ao'),
+                'petroangola_': ('Petroangola', 'https://www.petroangola.ao')
             }
             
-            # Carrega todos os arquivos de dados das empresas
+            # Carrega arquivos relevantes
             company_files = {}
             used_sources = []
             
             for file_path in data_path.glob("*.txt"):
-                if any(prefix in file_path.name for prefix in ['total_', 'sonangol_', 'azule_', 'anpg_', 'petroangola_']):
-                    try:
-                        content = file_path.read_text(encoding='utf-8')
-                        # Remove metadados do cabeçalho
-                        lines = content.split('\n')
-                        content_start = 0
-                        for i, line in enumerate(lines):
-                            if '=' in line and len(line) > 10:
-                                content_start = i + 2  # Pula linha separadora e linha vazia
-                                break
-                        
-                        clean_content = '\n'.join(lines[content_start:]).strip()
-                        if len(clean_content) > 100:  # Só inclui conteúdo substancial
-                            company_files[file_path.name] = clean_content
-                            
-                            # Identifica a fonte
-                            for prefix, source_info in source_mapping.items():
-                                if file_path.name.startswith(prefix):
-                                    if source_info not in used_sources:
-                                        used_sources.append(source_info)
+                for prefix, (source_name, base_url) in source_mapping.items():
+                    if file_path.name.startswith(prefix):
+                        try:
+                            content = file_path.read_text(encoding='utf-8')
+                            # Remove metadados do cabeçalho
+                            lines = content.split('\n')
+                            content_start = 0
+                            for i, line in enumerate(lines):
+                                if '=' in line and len(line) > 10:
+                                    content_start = i + 2
                                     break
-                        
-                    except Exception as e:
-                        logger.warning(f"Erro ao ler {file_path}: {e}")
+                            
+                            clean_content = '\n'.join(lines[content_start:]).strip()
+                            if len(clean_content) > 100:
+                                company_files[source_name] = {
+                                    'content': clean_content[:2000],  # Limita tamanho
+                                    'url': base_url
+                                }
+                                if source_name not in used_sources:
+                                    used_sources.append(source_name)
+                            
+                        except Exception as e:
+                            logger.warning(f"Erro ao ler {file_path}: {e}")
+                        break
             
             if not company_files:
                 return "Contexto empresarial não disponível.", []
             
-            # Estratégia inteligente de seleção de contexto
+            # Seleciona contexto baseado na pergunta
             question_lower = question.lower()
             relevant_content = []
-            relevant_sources = []
+            final_sources = []
             
-            # Mapeia palavras-chave para empresas
-            keywords_map = {
-                'total': ['total', 'totalenergies'],
-                'sonangol': ['sonangol'],
-                'azule': ['azule', 'azul'],
-                'anpg': ['anpg', 'agência nacional', 'agencia nacional', 'anpg.ao'],
-                'petroangola': ['petroangola', 'petro angola', 'petróleo angola', 'petroleo angola']
-            }
-            
+            # Verifica empresas mencionadas
             companies_mentioned = []
-            for company, keywords in keywords_map.items():
-                if any(keyword in question_lower for keyword in keywords):
+            for company in [info[0] for info in source_mapping.values()]:
+                if company.lower() in question_lower:
                     companies_mentioned.append(company)
             
-            # Define fontes principais baseado no contexto
-            if 'petroangola' in companies_mentioned:
-                main_sources = ['petroangola']  # Prioriza Petroangola quando específico
-            elif companies_mentioned:
-                main_sources = companies_mentioned  # Usa as empresas mencionadas
-            else:
-                main_sources = ['total', 'sonangol', 'anpg']  # Fontes padrão para perguntas genéricas
-            
-
-            
-            # Se empresa específica mencionada, prioriza seu contexto
+            # Se empresas específicas mencionadas, prioriza elas
             if companies_mentioned:
                 for company in companies_mentioned:
-                    company_content = []
-                    for filename, content in company_files.items():
-                        if filename.startswith(f"{company}_"):
-                            company_content.append(content[:2000])  # Mais conteúdo por empresa
-                            
-                            # Adiciona fonte correspondente
-                            for prefix, source_info in source_mapping.items():
-                                if filename.startswith(prefix) and source_info not in relevant_sources:
-                                    relevant_sources.append(source_info)
-                                    break
-                    
-                    if company_content:
-                        relevant_content.append(f"=== {company.upper()} ===\n" + "\n\n".join(company_content))
+                    if company in company_files:
+                        relevant_content.append(f"=== {company.upper()} ===\n{company_files[company]['content']}")
+                        final_sources.append({
+                            'name': company,
+                            'url': company_files[company]['url']
+                        })
                 
-                # Adiciona contexto resumido das outras empresas (mas não adiciona às fontes)
-                for company in ['total', 'sonangol', 'azule', 'anpg', 'petroangola']:
+                # Adiciona resumo das outras empresas
+                for company, data in company_files.items():
                     if company not in companies_mentioned:
-                        for filename, content in company_files.items():
-                            if filename.startswith(f"{company}_") and filename.endswith("_01.txt"):  # Só primeira página
-                                relevant_content.append(f"=== {company.upper()} (Resumo) ===\n" + content[:800])
-                                break
+                        relevant_content.append(f"=== {company.upper()} (Visão Geral) ===\n{data['content'][:800]}")
             else:
-                # Se nenhuma empresa específica, inclui resumo de todas (mas só adiciona fontes principais)
-                main_sources = ['total', 'sonangol', 'anpg']  # Fontes principais para perguntas genéricas
-                for company in ['total', 'sonangol', 'azule', 'anpg', 'petroangola']:
-                    for filename, content in company_files.items():
-                        if filename.startswith(f"{company}_") and filename.endswith("_01.txt"):
-                            relevant_content.append(f"=== {company.upper()} ===\n" + content[:1200])
-                            break
-                
-                # Adiciona TODAS as fontes principais à lista de fontes relevantes
-                for company in main_sources:
-                    for prefix, source_info in source_mapping.items():
-                        if prefix.startswith(f"{company}_"):
-                            relevant_sources.append(source_info)
+                # Inclui todas as empresas
+                for company, data in company_files.items():
+                    relevant_content.append(f"=== {company.upper()} ===\n{data['content'][:1200]}")
+                    final_sources.append({
+                        'name': company,
+                        'url': data['url']
+                    })
             
             final_context = "\n\n".join(relevant_content)
             
-            # Limita tamanho total para não exceder limites da API
-            if len(final_context) > 8000:
-                final_context = final_context[:8000] + "\n[...contexto truncado...]"
+            # Limita tamanho total
+            if len(final_context) > 6000:
+                final_context = final_context[:6000] + "\n[...contexto continua...]"
             
-            return final_context if final_context else "Contexto limitado disponível.", relevant_sources
+            return final_context, final_sources
             
         except Exception as e:
             logger.warning(f"Erro ao carregar contexto: {e}")
             return "Erro ao acessar contexto empresarial.", []
     
     def health_check(self) -> dict:
-        """
-        Verifica se o serviço está funcionando corretamente.
-        
-        Returns:
-            Dicionário com status do serviço
-        """
+        """Verifica se o serviço está funcionando."""
         try:
-            # Determina qual método está disponível
-            if self.use_llamaindex and self.query_engine:
-                test_response = self.query("Teste de conectividade")
-                method = "llamaindex"
-            elif self.gemini_client:
-                # Testa o contexto disponível
-                context, sources = self._load_context_files("teste")
-                test_response = f"Gemini direto funcionando - Contexto: {len(context)} chars, Fontes: {len(sources)}"
-                method = "gemini_direct"
-            else:
-                return {"status": "unhealthy", "error": "Nenhum método LLM disponível"}
+            if not self.gemini_client:
+                return {"status": "unhealthy", "error": "Gemini não inicializado"}
+            
+            # Testa com uma pergunta simples
+            test_response = self.process_query_with_llm("teste", [])
             
             return {
                 "status": "healthy",
-                "method": method,
-                "llamaindex_available": LLAMAINDEX_AVAILABLE,
+                "method": "angola_energy_prompts",
                 "gemini_available": GEMINI_AVAILABLE,
-                "index_loaded": self.query_engine is not None,
-                "test_response_length": len(test_response) if test_response else 0
+                "test_response": bool(test_response.get("response"))
             }
             
         except Exception as e:
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "llamaindex_available": LLAMAINDEX_AVAILABLE,
-                "gemini_available": GEMINI_AVAILABLE,
-                "index_loaded": self.query_engine is not None
+                "gemini_available": GEMINI_AVAILABLE
             }
 
 
 # Instância global do serviço LLM
-# Será inicializada quando o módulo for importado
 try:
     llm_service = LLMService()
     logger.info("Serviço LLM inicializado com sucesso")
 except Exception as e:
     logger.error(f"Falha ao inicializar serviço LLM: {e}")
-    # Permite que a aplicação continue, mas com funcionalidade limitada
     llm_service = None
+
+
+def query_llm(question: str, history: list = None) -> str:
+    """
+    Função principal para consultas ao LLM usando Angola Energy Prompt System.
+    
+    Args:
+        question: Pergunta do usuário
+        history: Histórico de mensagens da conversa
+        
+    Returns:
+        Resposta do LLM usando Angola Energy Prompts
+        
+    Raises:
+        Exception: Se o serviço não estiver disponível
+    """
+    if not llm_service:
+        raise Exception("Serviço LLM não está disponível")
+    
+    result = llm_service.process_query_with_llm(question, history or [])
+    return result.get("response", "Desculpe, não consegui gerar uma resposta.")
 
 
 def query_llm_simple(prompt: str) -> str:
@@ -501,26 +401,6 @@ def query_llm_simple(prompt: str) -> str:
     except Exception as e:
         logger.error(f"Erro em query_llm_simple: {e}")
         return None
-
-
-def query_llm(question: str, history: list = None) -> str:
-    """
-    Função de conveniência para fazer consultas ao LLM.
-    
-    Args:
-        question: Pergunta do usuário
-        history: Histórico de mensagens da conversa
-        
-    Returns:
-        Resposta do LLM
-        
-    Raises:
-        Exception: Se o serviço não estiver disponível
-    """
-    if not llm_service:
-        raise Exception("Serviço LLM não está disponível")
-    
-    return llm_service.query(question, history or [])
 
 
 def get_llm_health() -> dict:

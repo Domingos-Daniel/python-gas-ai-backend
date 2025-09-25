@@ -306,6 +306,20 @@ class AdvancedDataAnalyzerFixed:
                 (r'(?:volume|produção|production|output)[\s\:]*(\d{1,3}(?:,\d{3})*)', 'Volume'),
                 (r'(?:capacidade|capacity)[\s\:]*(\d{1,3}(?:,\d{3})*)', 'Capacidade'),
                 (r'(?:investimento|investment)[\s\:]*\$?(\d{1,3}(?:,\d{3})*)', 'Investimento'),
+                
+                # Padrões adicionais para capturar mais dados
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:employees?|funcionários?|trabalhadores?)', 'Funcionários'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:production.*?professions?)', 'Profissões'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:production, commercial and support professions?)', 'Profissões'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:MW|megawatt)', 'Energia (MW)'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:service stations?|postos?|estações?)', 'Postos de Serviço'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:blocks?|blocos?)', 'Blocos'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:projects?|projetos?)', 'Projetos'),
+                (r'(?:more than|nearly|almost)?\s*(\d{1,3}(?:,\d{3})*)\s*(?:countries?|países?)', 'Países'),
+                
+                # Captura números importantes com contexto próximo
+                (r'(?:ano|year)[\s\:]*(\d{4})', 'Ano'),
+                (r'(\d{1,3}(?:,\d{3})*)', 'Valor Genérico'),  # Captura geral por último
             ]
             
             lines = text.split('\n')
@@ -326,7 +340,7 @@ class AdvancedDataAnalyzerFixed:
                             if value > 1000000:
                                 value = value / 1000000
                                 label = f"{label_base} (em milhões)"
-                            elif value > 1000:
+                            elif value > 1000 and label_base != 'Ano':
                                 value = value / 1000
                                 label = f"{label_base} (em milhares)"
                             else:
@@ -337,17 +351,17 @@ class AdvancedDataAnalyzerFixed:
                             if context:
                                 label = f"{context} - {label}"
                             
-                            # Evita duplicatas
-                            if label not in data:
+                            # Evita duplicatas e valores genéricos sem contexto
+                            if label not in data and not (label_base == 'Valor Genérico' and not context):
                                 data[label] = value
                                 
                         except ValueError:
                             continue
             
-            # Limita a 10 itens para não sobrecarregar
-            if len(data) > 10:
+            # Limita a 15 itens para não sobrecarregar
+            if len(data) > 15:
                 sorted_items = sorted(data.items(), key=lambda x: abs(x[1]), reverse=True)
-                data = dict(sorted_items[:10])
+                data = dict(sorted_items[:15])
             
             logger.info(f"🔢 Dados numéricos extraídos: {len(data)} itens")
             return data
