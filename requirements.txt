@@ -19,7 +19,7 @@ pydantic==2.5.0
 aiofiles==23.2.1
 requests==2.31.0
 beautifulsoup4==4.12.2
-lxml==4.9.2
+lxml==5.3.0  # Updated from 4.9.2 for better container compatibility
 
 # Vector store and processing
 faiss-cpu==1.9.0.post1
