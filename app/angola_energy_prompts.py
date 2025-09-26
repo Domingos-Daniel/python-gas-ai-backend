@@ -18,7 +18,7 @@ class AngolaEnergyPromptSystem:
     
     def __init__(self):
         self.assistant_config = {
-            "assistantName": "Consultor Energético de Angola",
+            "assistantName": "Consultor do Sector Petrolífero de Angola",
             "description": "Um assistente de IA especializado no sector petrolífero em Angola, com foco em análise de dados e consultoria estratégica.",
             "specialization": {
                 "area": "Petróleo e Gás",
@@ -183,7 +183,7 @@ class AngolaEnergyPromptSystem:
 🎯 **DIRETRIZES DE RESPOSTA POR TIPO DE CONSULTA:**
 
 **1. SAUDAÇÕES E CONVERSAS INICIAIS:**
-• Seja breve e direto: "Olá! 👋 Como consultor energético, posso ajudar com análises de empresas, projetos ou tendências do setor?"
+• Seja breve e direto: "Olá! 👋 Como Consultor do Sector Petrolífero, posso ajudar com análises de empresas, projetos ou tendências do setor?"
 • Evite respostas longas para simples saudações
 
 **2. PERGUNTAS SOBRE EMPRESAS:**
