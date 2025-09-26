@@ -12,6 +12,7 @@ from .chart_generator import generate_chart
 from .advanced_chart_generator_fixed import AdvancedChartGeneratorFixed
 from .data_analyzer import DataAnalyzer
 from .advanced_data_analyzer_fixed import AdvancedDataAnalyzerFixed
+from .export_utils import data_exporter
 
 # Configuração de logging
 logger = logging.getLogger(__name__)
@@ -139,6 +140,37 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Descrição do erro")
     status: str = Field(default="error", description="Status da operação")
     detail: Optional[str] = Field(None, description="Detalhes adicionais do erro")
+
+
+class ExportRequest(BaseModel):
+    """Modelo para requisição de exportação de dados."""
+    export_type: str = Field(
+        ...,
+        description="Tipo de exportação: 'chat', 'analysis', 'chart'",
+        example="analysis"
+    )
+    format_type: str = Field(
+        default="xlsx",
+        description="Formato de exportação: 'csv', 'xlsx', 'json'",
+        example="xlsx"
+    )
+    data: Dict[str, Any] = Field(
+        ...,
+        description="Dados a serem exportados (mensagens, análise, gráfico, etc.)"
+    )
+    filename: Optional[str] = Field(
+        default=None,
+        description="Nome opcional do arquivo (sem extensão)"
+    )
+
+
+class ExportResponse(BaseModel):
+    """Modelo para resposta de exportação de dados."""
+    file_content: bytes = Field(..., description="Conteúdo do arquivo exportado em base64")
+    filename: str = Field(..., description="Nome do arquivo com extensão")
+    content_type: str = Field(..., description="Content-Type do arquivo")
+    file_size: int = Field(..., description="Tamanho do arquivo em bytes")
+    status: str = Field(default="success", description="Status da operação")
 
 
 # ===== ENDPOINTS =====
@@ -669,10 +701,120 @@ async def root():
         "chat": "/chat",
         "analyze": "/analyze",
         "generate-chart": "/generate-chart",
+        "export-data": "/export-data",
         "features": [
             "Chat com contexto empresarial",
             "Análise com gráficos interativos",
             "Geração de visualizações profissionais",
+            "Exportação de dados para Excel/CSV",
             "Suporte para múltiplos tipos de gráficos"
         ]
     }
+
+
+@router.post(
+    "/export-data",
+    response_model=ExportResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Dados inválidos"},
+        500: {"model": ErrorResponse, "description": "Erro interno do servidor"},
+    },
+    summary="Exportar Dados",
+    description="Exporta dados e resultados da IA para Excel, CSV ou JSON."
+)
+async def export_data_endpoint(
+    request: ExportRequest
+) -> ExportResponse:
+    """
+    Endpoint para exportação de dados e resultados da IA.
+    
+    Args:
+        request: Dados para exportação incluindo tipo, formato e conteúdo
+        
+    Returns:
+        Arquivo exportado em base64 com metadados
+        
+    Raises:
+        HTTPException: Para erros de validação ou processamento
+    """
+    try:
+        logger.info(f"Exportando dados do tipo: {request.export_type} no formato: {request.format_type}")
+        
+        # Valida tipo de exportação
+        valid_export_types = ['chat', 'analysis', 'chart']
+        if request.export_type not in valid_export_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tipo de exportação inválido. Use: {', '.join(valid_export_types)}"
+            )
+        
+        # Valida formato de exportação
+        valid_formats = ['csv', 'xlsx', 'json']
+        if request.format_type not in valid_formats:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Formato de exportação inválido. Use: {', '.join(valid_formats)}"
+            )
+        
+        # Valida dados
+        if not request.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dados inválidos fornecidos para exportação"
+            )
+        
+        # Gera nome de arquivo se não fornecido
+        if not request.filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            request.filename = f"{request.export_type}_export_{timestamp}"
+        
+        # Realiza exportação baseada no tipo
+        if request.export_type == 'chat':
+            # Exporta histórico de chat
+            file_content, content_type, file_size = data_exporter.export_chat_history(
+                messages=request.data.get('messages', []),
+                format_type=request.format_type,
+                filename=request.filename
+            )
+            
+        elif request.export_type == 'analysis':
+            # Exporta dados de análise
+            file_content, content_type, file_size = data_exporter.export_analysis_data(
+                analysis_data=request.data,
+                format_type=request.format_type,
+                filename=request.filename
+            )
+            
+        elif request.export_type == 'chart':
+            # Exporta dados de gráfico
+            file_content, content_type, file_size = data_exporter.export_chart_data(
+                chart_data=request.data,
+                format_type=request.format_type,
+                filename=request.filename
+            )
+        
+        # Adiciona extensão ao nome do arquivo
+        filename = f"{request.filename}.{request.format_type}"
+        
+        logger.info(f"Exportação concluída: {filename} ({file_size} bytes)")
+        
+        return ExportResponse(
+            file_content=file_content,
+            filename=filename,
+            content_type=content_type,
+            file_size=file_size,
+            status="success"
+        )
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions
+        raise
+        
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Erro ao exportar dados: {error_message}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao exportar dados: {error_message}"
+        )

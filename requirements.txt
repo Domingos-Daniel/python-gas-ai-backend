@@ -37,3 +37,7 @@ Pillow==10.4.0  # Updated from 10.1.0 to satisfy llama-index-llms-gemini>=10.2.0
 # Additional utilities for content processing
 markdown==3.5.1
 html2text==2020.1.16
+
+# Excel/CSV export functionality
+openpyxl==3.1.2
+xlsxwriter==3.1.9
