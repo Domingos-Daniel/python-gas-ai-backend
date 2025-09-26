@@ -8,7 +8,7 @@ Tamanho: 2200 caracteres
 
 ### Portal de Notícias Especializado
 A Petroangola opera como um portal dedicado à indústria de petróleo e gás, fornecendo:
-- Notícias diárias sobre o setor energético
+- Notícias diárias sobre o Sector Petrolífero
 - Análises de mercado semanais
 - Cobertura de projetos e desenvolvimentos
 - Informações sobre empresas operadoras em Angola

@@ -213,9 +213,9 @@ Contexto:
     def _generate_greeting_response(self, conversation_history: list = None) -> str:
         """Generate greeting response with concrete examples"""
         greetings = [
-            "Olá! 👋 Sou seu consultor especializado em energia e petróleo em Angola. Posso ajudá-lo com:\n\n• Análises das principais empresas (Sonangol, Total, Azule Energy)\n• Tendências do mercado energético angolano\n• Dados de produção e investimentos\n• Projetos e desenvolvimentos do setor\n\nO que gostaria de saber?",
-            "Bom dia! 💡 Estou aqui para fornecer informações estratégicas sobre o setor de energia angolano. Posso ajudar com:\n\n• Análises de desempenho das empresas\n• Dados de produção e exportação\n• Tendências de mercado e oportunidades\n• Contexto regulatório e investimentos\n\nQual sua pergunta específica?",
-            "Oi! 🛢️ Seja bem-vindo ao consultor especializado em energia de Angola. Minhas principais capacidades incluem:\n\n• Análises detalhadas das empresas petrolíferas\n• Dados atualizados do setor energético\n• Insights sobre projetos e investimentos\n• Informações sobre regulamentações e mercado\n\nComo posso ser útil para você hoje?"
+            "Olá! 👋 Sou seu consultor especializado em petróleo e gás em Angola. Posso ajudá-lo com:\n\n• Análises das principais empresas (Sonangol, Total, Azule Energy)\n• Tendências do mercado energético angolano\n• Dados de produção e investimentos\n• Projetos e desenvolvimentos do setor\n\nO que gostaria de saber?",
+            "Bom dia! 💡 Estou aqui para fornecer informações estratégicas sobre o sector petrolífero angolano. Posso ajudar com:\n\n• Análises de desempenho das empresas\n• Dados de produção e exportação\n• Tendências de mercado e oportunidades\n• Contexto regulatório e investimentos\n\nQual sua pergunta específica?",
+            "Oi! 🛢️ Seja bem-vindo ao consultor especializado em Petróleo e Gás no mercado Angolno. Minhas principais capacidades incluem:\n\n• Análises detalhadas das empresas petrolíferas\n• Dados atualizados do Sector Petrolífero\n• Insights sobre projetos e investimentos\n• Informações sobre regulamentações e mercado\n\nComo posso ser útil para você hoje?"
         ]
         import random
         return random.choice(greetings)

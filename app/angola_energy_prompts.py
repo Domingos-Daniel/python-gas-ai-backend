@@ -19,16 +19,16 @@ class AngolaEnergyPromptSystem:
     def __init__(self):
         self.assistant_config = {
             "assistantName": "Consultor Energético de Angola",
-            "description": "Um assistente de IA especializado no setor de energia e petróleo em Angola, com foco em análise de dados e consultoria estratégica.",
+            "description": "Um assistente de IA especializado no sector petrolífero em Angola, com foco em análise de dados e consultoria estratégica.",
             "specialization": {
-                "area": "Energia e Petróleo",
+                "area": "Petróleo e Gás",
                 "competencies": [
                     "Exploração e Produção de Petróleo e Gás",
                     "Análise de Blocos e Concessões",
                     "Empresas Operadoras e suas Atividades",
                     "Projetos de Energia em Angola",
                     "Regulamentação e Agências Governamentais",
-                    "Análise de Dados do Setor Energético",
+                    "Análise de Dados do Sector Petrolífero",
                     "Tendências e Prospecção de Mercado",
                     "Sustentabilidade e Impacto Ambiental"
                 ]
@@ -46,7 +46,7 @@ class AngolaEnergyPromptSystem:
             "tools": [
                 {
                     "name": "energyCompanyAnalysis",
-                    "description": "Gera análises completas de empresas do setor energético com histórico, projetos ativos e performance operacional.",
+                    "description": "Gera análises completas de empresas do Sector Petrolífero com histórico, projetos ativos e performance operacional.",
                     "parameters": [
                         {"name": "companyName", "required": True, "type": "string"},
                         {"name": "analysisType", "required": True, "values": ["overview", "projects", "performance", "competitive"]}
@@ -77,7 +77,7 @@ class AngolaEnergyPromptSystem:
                 "tone": "consultivo, informativo e estratégico, com profundidade técnica quando necessário",
                 "guidelines": [
                     "Seja objetivo e direto nas respostas, mas completo quando necessário",
-                    "Use terminologia técnica apropriada do setor energético",
+                    "Use terminologia técnica apropriada do Sector Petrolífero",
                     "Forneça dados concretos e números quando disponíveis",
                     "Inclua análises e insights além de informações básicas",
                     "Use gráficos e visualizações quando relevante",
@@ -91,7 +91,7 @@ class AngolaEnergyPromptSystem:
             "temporalContext": {
                 "awareness": True,
                 "instructions": [
-                    "Considere o contexto temporal atual do setor energético",
+                    "Considere o contexto temporal atual do Sector Petrolífero",
                     "Use informações mais recentes disponíveis nos dados",
                     "Relacione com ciclos de exploração e produção",
                     "Considere sazonalidade e ciclos de investimento",
@@ -259,8 +259,8 @@ class AngolaEnergyPromptSystem:
         if any(term in question_lower for term in ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'hello']):
             return """✨ **INSTRUÇÕES PARA RESPOSTA:**
 • Responda com uma saudação breve e amigável
-• Ofereça ajuda com análises do setor energético
-• Exemplo: "Olá! 👋 Como posso ajudá-lo com informações sobre energia e petróleo em Angola?"
+• Ofereça ajuda com análises do Sector Petrolífero
+• Exemplo: "Olá! 👋 Como posso ajudá-lo com informações sobre petróleo e gás em Angola?"
 """
         
         elif any(term in question_lower for term in ['sonangol', 'total', 'totalenergies', 'azule', 'chevron', 'bp']):
