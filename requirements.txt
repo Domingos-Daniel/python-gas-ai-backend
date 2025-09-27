@@ -41,3 +41,8 @@ html2text==2020.1.16
 # Excel/CSV export functionality
 openpyxl==3.1.2
 xlsxwriter==3.1.9
+
+# Document processing for file uploads
+python-docx==1.1.0  # Word document processing
+PyPDF2==3.0.1       # PDF processing
+python-magic==0.4.27 # File type detection

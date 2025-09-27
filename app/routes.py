@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import logging
+import os
 
 from .llm_utils import query_llm, get_llm_health
 from .chart_generator import generate_chart
@@ -13,6 +14,8 @@ from .advanced_chart_generator_fixed import AdvancedChartGeneratorFixed
 from .data_analyzer import DataAnalyzer
 from .advanced_data_analyzer_fixed import AdvancedDataAnalyzerFixed
 from .export_utils import data_exporter
+from .document_processor import process_uploaded_document
+from fastapi import UploadFile, File
 
 # Configuração de logging
 logger = logging.getLogger(__name__)
@@ -48,6 +51,11 @@ class ChatRequest(BaseModel):
             {"role": "user", "content": "Me fale sobre o ANPG"},
             {"role": "assistant", "content": "O ANPG é a Agência Nacional..."}
         ]
+    )
+    document_context: Optional[str] = Field(
+        default=None,
+        description="Conteúdo extraído de documentos para uso como contexto",
+        example="Este documento contém informações sobre a TotalEnergies em Angola..."
     )
 
 
@@ -173,6 +181,16 @@ class ExportResponse(BaseModel):
     status: str = Field(default="success", description="Status da operação")
 
 
+class DocumentUploadResponse(BaseModel):
+    """Modelo para resposta de upload de documento."""
+    filename: str = Field(..., description="Nome do arquivo")
+    file_type: str = Field(..., description="Tipo do arquivo (excel, pdf, txt, word)")
+    text_content: str = Field(..., description="Conteúdo extraído do documento")
+    metadata: Dict[str, Any] = Field(..., description="Metadados do arquivo")
+    status: str = Field(default="success", description="Status da operação")
+    message: str = Field(..., description="Mensagem de sucesso")
+
+
 # ===== ENDPOINTS =====
 
 @router.post(
@@ -209,8 +227,18 @@ async def chat_endpoint(payload: ChatRequest) -> ChatResponse:
                 detail="Pergunta não pode estar vazia"
             )
         
-        # Processa pergunta usando LLM com histórico
-        answer = query_llm(question, payload.history)
+        # Processa pergunta usando LLM com histórico e contexto de documento
+        enhanced_question = question
+        if payload.document_context:
+            enhanced_question = f"""Contexto do documento:
+{payload.document_context}
+
+Pergunta do usuário:
+{question}
+
+Por favor, responda à pergunta considerando o contexto do documento acima."""
+        
+        answer = query_llm(enhanced_question, payload.history)
         
         if not answer:
             raise HTTPException(
@@ -817,4 +845,96 @@ async def export_data_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao exportar dados: {error_message}"
+        )
+
+
+@router.post(
+    "/upload-document",
+    response_model=DocumentUploadResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Arquivo inválido ou não suportado"},
+        413: {"model": ErrorResponse, "description": "Arquivo muito grande"},
+        500: {"model": ErrorResponse, "description": "Erro interno do servidor"},
+    },
+    summary="Upload de Documento",
+    description="Faz upload e processa documentos (Excel, PDF, TXT, Word) para uso como contexto."
+)
+async def upload_document_endpoint(
+    file: UploadFile = File(...)
+) -> DocumentUploadResponse:
+    """
+    Endpoint para upload e processamento de documentos.
+    
+    Args:
+        file: Arquivo a ser processado
+        
+    Returns:
+        Dados extraídos do documento
+        
+    Raises:
+        HTTPException: Para erros de validação ou processamento
+    """
+    try:
+        logger.info(f"Recebendo upload de documento: {file.filename}")
+        
+        # Valida arquivo
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nome do arquivo não fornecido"
+            )
+        
+        # Verifica extensão do arquivo
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        supported_extensions = ['.xlsx', '.xls', '.pdf', '.txt', '.docx', '.doc']
+        
+        if file_extension not in supported_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tipo de arquivo não suportado. Use: {', '.join(supported_extensions)}"
+            )
+        
+        # Lê conteúdo do arquivo
+        content = await file.read()
+        file_size = len(content)
+        max_size = 10 * 1024 * 1024  # 10MB
+        
+        if file_size > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Arquivo muito grande. Tamanho máximo: {max_size / (1024*1024):.1f}MB"
+            )
+        
+        # Processa o documento
+        result = process_uploaded_document(file.filename, content)
+        
+        logger.info(f"Documento processado com sucesso: {file.filename}")
+        
+        return DocumentUploadResponse(
+            filename=result['filename'],
+            file_type=result['type'],
+            text_content=result['text_content'],
+            metadata=result['metadata'],
+            status="success",
+            message=f"Documento '{file.filename}' processado com sucesso"
+        )
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions
+        raise
+        
+    except ValueError as e:
+        logger.error(f"Erro de validação no upload: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+        
+    except Exception as e:
+        error_message = str(e)
+        logger.error(f"Erro ao processar documento: {error_message}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao processar documento: {error_message}"
         )
